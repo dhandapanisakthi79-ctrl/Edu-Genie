@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EduGenie - Google Gemini Powered Learning Assistant</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="logo-badge">🎓 EduGenie</div>
+      <h1>Google Gemini Powered Learning Assistant</h1>
+      <p class="subtitle">Smart, concise answers • Simplified concepts • Instant quizzes • Learning paths</p>
+    </header>
+
+    <div class="preset-pills">
+      <span class="preset-label">Quick Scenarios:</span>
+      <button class="pill" onclick="applyPreset('qna', 'Which is the largest ocean?')">🌊 Scenario 1: Largest Ocean</button>
+      <button class="pill" onclick="applyPreset('quiz', 'The Pythagoras Theorem states that in a right-angled triangle, the square of the hypotenuse is equal to the sum of the squares of the other two sides: a² + b² = c².')">📐 Scenario 2: Pythagoras Quiz</button>
+      <button class="pill" onclick="applyPreset('learn', 'SQL (Structured Query Language)')">🗄️ Scenario 3: SQL Learning Path</button>
+    </div>
+
+    <main class="card main-form-card">
+      <form id="edugenieForm" onsubmit="handleFormSubmit(event)">
+        <div class="form-group">
+          <label for="taskSelect"><strong>Select Academic Task</strong></label>
+          <select id="taskSelect" class="form-control" onchange="updatePlaceholder()">
+            <option value="qna">Ask a Question (QnA Module)</option>
+            <option value="explain">Explain Complex Concept</option>
+            <option value="quiz">Generate Quiz (3 MCQs with Answers)</option>
+            <option value="summarize">Summarize Educational Passage</option>
+            <option value="learn">Generate Structured Learning Path</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="userInput" id="inputLabel"><strong>Your Input / Question / Topic</strong></label>
+          <textarea id="userInput" class="form-control" rows="5" placeholder="Which is the largest ocean?" required></textarea>
+        </div>
+
+        <button type="submit" id="submitBtn" class="btn btn-primary">
+          <span id="btnText">✨ Run with EduGenie</span>
+          <span id="btnLoader" class="spinner" style="display: none;"></span>
+        </button>
+      </form>
+    </main>
+
+    <section id="resultCard" class="card result-card" style="display: none;">
+      <div class="result-header">
+        <h3 id="resultTitle">Results</h3>
+        <button class="btn btn-sm btn-outline" onclick="copyResult()">📋 Copy</button>
+      </div>
+      <div id="resultContent" class="result-content"></div>
+    </section>
+
+    <footer class="footer">
+      <p>EduGenie • Powered by Google Gemini Generative AI • Lightweight, High-Impact Learning</p>
+    </footer>
+  </div>
+
+  <script>
+    function updatePlaceholder() {
+      const task = document.getElementById('taskSelect').value;
+      const input = document.getElementById('userInput');
+      const label = document.getElementById('inputLabel');
+
+      if (task === 'qna') {
+        label.innerHTML = '<strong>Your Question</strong>';
+        input.placeholder = 'e.g., Which is the largest ocean? How does gravity work?';
+      } else if (task === 'explain') {
+        label.innerHTML = '<strong>Concept to Explain</strong>';
+        input.placeholder = 'e.g., The Pythagoras Theorem, Quantum Entanglement, Photosynthesis';
+      } else if (task === 'quiz') {
+        label.innerHTML = '<strong>Passage or Topic for Quiz</strong>';
+        input.placeholder = 'e.g., Paste a science paragraph or enter "The Pythagoras Theorem"';
+      } else if (task === 'summarize') {
+        label.innerHTML = '<strong>Educational Text to Summarize</strong>';
+        input.placeholder = 'Paste long educational article, textbook chapter, or lecture notes...';
+      } else if (task === 'learn') {
+        label.innerHTML = '<strong>Topic or Skill for Learning Path</strong>';
+        input.placeholder = 'e.g., SQL, Machine Learning, Calculus, Web Development';
+      }
+    }
+
+    function applyPreset(task, text) {
+      document.getElementById('taskSelect').value = task;
+      updatePlaceholder();
+      document.getElementById('userInput').value = text;
+      document.getElementById('edugenieForm').dispatchEvent(new Event('submit'));
+    }
+
+    async function handleFormSubmit(e) {
+      e.preventDefault();
+      const task = document.getElementById('taskSelect').value;
+      const input = document.getElementById('userInput').value.trim();
+      if (!input) return;
+
+      const submitBtn = document.getElementById('submitBtn');
+      const btnText = document.getElementById('btnText');
+      const btnLoader = document.getElementById('btnLoader');
+      const resultCard = document.getElementById('resultCard');
+      const resultContent = document.getElementById('resultContent');
+
+      btnText.textContent = 'Generating with Gemini...';
+      btnLoader.style.display = 'inline-block';
+      submitBtn.disabled = true;
+
+      let endpoint = '/qa';
+      let payload = {};
+
+      if (task === 'qna') {
+        endpoint = '/qa';
+        payload = { question: input };
+      } else if (task === 'explain') {
+        endpoint = '/explain';
+        payload = { topic: input };
+      } else if (task === 'quiz') {
+        endpoint = '/quiz';
+        payload = { passage: input, count: 3 };
+      } else if (task === 'summarize') {
+        endpoint = '/summarize';
+        payload = { text: input };
+      } else if (task === 'learn') {
+        endpoint = '/learn/recommendations';
+        payload = { topic: input };
+      }
+
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        renderResult(task, data);
+        resultCard.style.display = 'block';
+        resultCard.scrollIntoView({ behavior: 'smooth' });
+      } catch (err) {
+        resultContent.innerHTML = `<div class="error-box">Error calling ${endpoint}: ${err.message}</div>`;
+        resultCard.style.display = 'block';
+      } finally {
+        btnText.textContent = '✨ Run with EduGenie';
+        btnLoader.style.display = 'none';
+        submitBtn.disabled = false;
+      }
+    }
+
+    function renderResult(task, data) {
+      const el = document.getElementById('resultContent');
+      if (data.error) {
+        el.innerHTML = `<div class="error-box"><strong>Error:</strong> ${data.error}<br><small>${data.details || ''}</small></div>`;
+        return;
+      }
+
+      if (task === 'qna') {
+        let html = `<div class="answer-box"><h4>Answer</h4><p>${data.answer || ''}</p></div>`;
+        if (data.keyFacts && data.keyFacts.length) {
+          html += `<h4>💡 Key Facts</h4><ul class="facts-list">` +
+            data.keyFacts.map(f => `<li>${f}</li>`).join('') + `</ul>`;
+        }
+        if (data.followUpQuestions && data.followUpQuestions.length) {
+          html += `<h4>❓ Follow-up Questions</h4><div class="follow-ups">` +
+            data.followUpQuestions.map(q => `<button class="pill" onclick="applyPreset('qna', '${q.replace(/'/g, "\\'")}')">${q}</button>`).join('') + `</div>`;
+        }
+        el.innerHTML = html;
+      } else if (task === 'explain') {
+        let html = `<h3>${data.title || 'Explanation'}</h3>`;
+        html += `<p class="lead">${data.simpleDefinition || ''}</p>`;
+        if (data.analogy) {
+          html += `<div class="analogy-box"><strong>💡 Real-World Analogy:</strong><p>${data.analogy}</p></div>`;
+        }
+        if (data.steps && data.steps.length) {
+          html += `<h4>How It Works</h4><div class="steps-grid">`;
+          data.steps.forEach(s => {
+            html += `<div class="step-card"><span class="step-badge">${s.stepNumber}</span><strong>${s.title}</strong><p>${s.description}</p></div>`;
+          });
+          html += `</div>`;
+        }
+        if (data.whyItMatters) {
+          html += `<div class="takeaway-box"><strong>Why it matters:</strong> ${data.whyItMatters}</div>`;
+        }
+        el.innerHTML = html;
+      } else if (task === 'quiz') {
+        const questions = data.questions || [];
+        let html = `<h3>Quiz: ${data.topic || 'Assessment'}</h3><p>Select your answer for each question:</p>`;
+        questions.forEach((q, idx) => {
+          html += `<div class="quiz-item" id="q_${idx}">
+            <p><strong>${idx + 1}. ${q.question}</strong></p>
+            <div class="options-group">
+              ${q.options.map((opt, optIdx) => `
+                <button type="button" class="btn-option" onclick="checkOption(${idx}, '${opt.replace(/'/g, "\\'")}', '${q.correctAnswer.replace(/'/g, "\\'")}', '${q.explanation.replace(/'/g, "\\'")}', this)">
+                  ${String.fromCharCode(65 + optIdx)}. ${opt}
+                </button>
+              `).join('')}
+            </div>
+            <div id="feedback_${idx}" class="feedback-box" style="display:none;"></div>
+          </div>`;
+        });
+        el.innerHTML = html;
+      } else if (task === 'summarize') {
+        let html = `<h3>${data.title || 'Summary'}</h3>`;
+        html += `<div class="summary-box"><h4>Concise Summary</h4><p>${data.quickSummary || ''}</p></div>`;
+        if (data.keyTakeaways && data.keyTakeaways.length) {
+          html += `<h4>Key Takeaways</h4><ul>` + data.keyTakeaways.map(t => `<li>${t}</li>`).join('') + `</ul>`;
+        }
+        if (data.keyTerms && data.keyTerms.length) {
+          html += `<h4>Core Terminology</h4><div class="terms-grid">` +
+            data.keyTerms.map(k => `<div class="term-pill"><strong>${k.term}:</strong> ${k.definition}</div>`).join('') + `</div>`;
+        }
+        el.innerHTML = html;
+      } else if (task === 'learn') {
+        let html = `<h3>Roadmap: ${data.topic || 'Learning Path'}</h3><p>${data.overview || ''}</p>`;
+        if (data.stages && data.stages.length) {
+          html += `<div class="stages-timeline">`;
+          data.stages.forEach(st => {
+            html += `<div class="stage-card">
+              <div class="stage-header"><span class="badge">${st.level} • ${st.duration}</span><h4>Stage ${st.stageNumber}: ${st.title}</h4></div>
+              <p>${st.description}</p>
+              <h5>Topics to Master:</h5>
+              <ul>${st.topicsToMaster.map(t => `<li>${t}</li>`).join('')}</ul>
+              ${st.handsOnProject ? `<div class="project-box"><strong>🚀 Project:</strong> ${st.handsOnProject.title} - ${st.handsOnProject.goal}</div>` : ''}
+            </div>`;
+          });
+          html += `</div>`;
+        }
+        el.innerHTML = html;
+      }
+    }
+
+    function checkOption(qIdx, selected, correct, explanation, btn) {
+      const container = document.getElementById(`q_${qIdx}`);
+      const buttons = container.querySelectorAll('.btn-option');
+      buttons.forEach(b => b.disabled = true);
+
+      const feedback = document.getElementById(`feedback_${qIdx}`);
+      feedback.style.display = 'block';
+
+      if (selected === correct) {
+        btn.classList.add('correct');
+        feedback.innerHTML = `<span class="badge-success">✓ Correct!</span> ${explanation}`;
+        feedback.className = 'feedback-box feedback-success';
+      } else {
+        btn.classList.add('wrong');
+        buttons.forEach(b => {
+          if (b.textContent.includes(correct)) b.classList.add('correct');
+        });
+        feedback.innerHTML = `<span class="badge-danger">✗ Incorrect.</span> Correct answer is: <strong>${correct}</strong>.<br>${explanation}`;
+        feedback.className = 'feedback-box feedback-error';
+      }
+    }
+
+    function copyResult() {
+      const text = document.getElementById('resultContent').innerText;
+      navigator.clipboard.writeText(text);
+      alert('Result copied to clipboard!');
+    }
+  </script>
+</body>
+</html>
